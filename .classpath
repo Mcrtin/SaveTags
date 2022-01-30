@@ -6,7 +6,7 @@
 			<attribute name="module" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Users/Martin/Desktop/eclipse-21.03/lombok.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Martin/Desktop/eclipse-21.03/lombok.jar" sourcepath="C:/Users/Martin/AppData/Local/Temp/.org.sf.feeling.decompiler1643548002774/source/lombok-1.18.22-sources.jar"/>
 	<classpathentry kind="lib" path="C:/Users/Martin/Desktop/eclipse-21.03/spigot-1.16.5.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

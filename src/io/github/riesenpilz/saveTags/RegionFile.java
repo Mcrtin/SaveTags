@@ -28,6 +28,7 @@ import org.apache.commons.lang.Validate;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
@@ -53,8 +54,8 @@ class RegionFile implements AutoCloseable {
 		secondByteBuffAsInt4096Bytes = byteBuff8192.asIntBuffer();
 		byteBuff8192.position(0);
 
-		dataFile = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.READ,
-				StandardOpenOption.WRITE, sync ? StandardOpenOption.SYNC : StandardOpenOption.DSYNC);
+		dataFile = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE,
+				sync ? StandardOpenOption.SYNC : StandardOpenOption.DSYNC);
 
 		freeSectors.add(0, 2);
 
@@ -78,15 +79,15 @@ class RegionFile implements AutoCloseable {
 			int sectorSize = fistByte(current);
 
 			if (last3Bytes < 2) {
-				log.warn("Region file {} has invalid sector at index: {}; sector {} overlaps with header", file,
-						pos, last3Bytes);
+				log.warn("Region file {} has invalid sector at index: {}; sector {} overlaps with header", file, pos,
+						last3Bytes);
 				firstByteBuffAsInt4096Bytes.put(pos, 0);
 			} else if (sectorSize == 0) {
 				log.warn("Region file {} has an invalid sector at index: {}; size has to be > 0", file, pos);
 				firstByteBuffAsInt4096Bytes.put(pos, 0);
 			} else if (last3Bytes * 4096L > size) {
-				log.warn("Region file {} has an invalid sector at index: {}; sector {} is out of bounds", file,
-						pos, last3Bytes);
+				log.warn("Region file {} has an invalid sector at index: {}; sector {} is out of bounds", file, pos,
+						last3Bytes);
 				firstByteBuffAsInt4096Bytes.put(pos, 0);
 			} else
 				freeSectors.add(last3Bytes, sectorSize);
@@ -140,17 +141,6 @@ class RegionFile implements AutoCloseable {
 		return new DataInputStream(new BufferedInputStream(new InflaterInputStream((inputstream))));
 	}
 
-	@Nullable
-	private DataInputStream a(ChunkCoords chunk) throws IOException {
-		Path path = getPath(chunk);
-
-		if (!Files.isRegularFile(path, new LinkOption[0])) {
-			log.error("External chunk path {} is not file", path);
-			return null;
-		}
-		return this.toDataInputStream(Files.newInputStream(path));
-	}
-
 	private static ByteArrayInputStream clip(ByteBuffer bytebuffer, int count) {
 		return new ByteArrayInputStream(bytebuffer.array(), bytebuffer.position(), count);
 	}
@@ -167,18 +157,13 @@ class RegionFile implements AutoCloseable {
 		return i >> 8 & 16777215;
 	}
 
-	/**
-	 * i > 4096 ? i == 2 : 1;
-	 * 
-	 * @param size
-	 * @return
-	 */
 	private static int buffsNeeded(int size) {
 		return (size + 4096 - 1) / 4096;
 	}
 
 	DataOutputStream openOutputStream(ChunkCoords chunk) {
-		return new DataOutputStream(new BufferedOutputStream(new DeflaterOutputStream(((new ChunkCoordsBuffer(chunk))))));
+		return new DataOutputStream(
+				new BufferedOutputStream(new DeflaterOutputStream(((new ChunkCoordsBuffer(chunk))))));
 	}
 
 	void force() throws IOException {
@@ -232,28 +217,10 @@ class RegionFile implements AutoCloseable {
 
 	private Runnable createTmpFile(Path path, ByteBuffer bytebuffer) throws IOException {
 		Path tmp = Files.createTempFile(dir, "tmp", null);
+		@Cleanup
 		FileChannel filechannel = FileChannel.open(tmp, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-		Throwable throwable = null;
-
-		try {
-			bytebuffer.position(5);
-			filechannel.write(bytebuffer);
-		} catch (Throwable throwable1) {
-			throwable = throwable1;
-			throw throwable1;
-		} finally {
-			if (filechannel != null)
-				if (throwable != null)
-					try {
-						filechannel.close();
-					} catch (Throwable throwable2) {
-						throwable.addSuppressed(throwable2);
-					}
-				else
-					filechannel.close();
-
-		}
-
+		bytebuffer.position(5);
+		filechannel.write(bytebuffer);
 		return () -> Files.move(tmp, path, StandardCopyOption.REPLACE_EXISTING);
 	}
 
@@ -271,7 +238,7 @@ class RegionFile implements AutoCloseable {
 			flush();
 		} finally {
 			try {
-				dataFile.force(true);
+				force();
 			} finally {
 				dataFile.close();
 			}
@@ -296,7 +263,6 @@ class RegionFile implements AutoCloseable {
 	 */
 	@FunctionalInterface
 	private static interface Runnable {
-
 		void run() throws IOException;
 	}
 

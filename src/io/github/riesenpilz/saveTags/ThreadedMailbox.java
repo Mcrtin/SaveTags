@@ -3,7 +3,6 @@ package io.github.riesenpilz.saveTags;
 import java.util.Queue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 

@@ -6,8 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import javax.annotation.Nullable;
-
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -16,6 +14,7 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.ItemDespawnEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
@@ -83,10 +82,22 @@ public class SaveTags extends JavaPlugin implements Listener {
 	public void onEntityDie(EntityDeathEvent e) {
 		entityTags.remove(e.getEntity());
 	}
-	
+
 	@EventHandler
 	public void onItemDespawn(ItemDespawnEvent e) {
 		entityTags.remove(e.getEntity());
+	}
+
+	@EventHandler
+	public void onBlockBreak(BlockBreakEvent e) {
+		removeBlockTags(e.getBlock());
+	}
+
+	public static void removeBlockTags(Block block) {
+		final Location location = block.getLocation();
+		final JsonObject tag = getAllTags(block.getChunk());
+		final JsonObject blockTags = get(tag, "block tags");
+		blockTags.remove(location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ());
 	}
 
 	public IOWorker getWorker(final World world) {
@@ -98,10 +109,9 @@ public class SaveTags extends JavaPlugin implements Listener {
 		return worker;
 	}
 
-	@Nullable
 	public static JsonObject getAllTags(Chunk chunk) {
 		tags.putIfAbsent(chunk, new JsonObject());
-		return chunk.isLoaded() ? tags.get(chunk) : null;
+		return tags.get(chunk);
 	}
 
 	public static JsonObject getBlockTags(Block block) {
@@ -113,6 +123,18 @@ public class SaveTags extends JavaPlugin implements Listener {
 
 	public static JsonObject getChunkTags(Chunk chunk) {
 		return get(getAllTags(chunk), "chunk tag");
+	}
+
+	public static void removeChunkTags(Chunk chunk) {
+		getAllTags(chunk).remove("chunk tag");
+	}
+
+	public void removeAllTags(Chunk chunk) {
+		tags.remove(chunk);
+	}
+
+	public static void removeEntityTags(Entity entity) {
+		entityTags.remove(entity);
 	}
 
 	private static JsonObject get(JsonObject json, String key) {

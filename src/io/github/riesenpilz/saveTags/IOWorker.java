@@ -16,15 +16,14 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.google.common.collect.Maps;
 import com.google.gson.JsonObject;
 import com.mojang.datafixers.util.Either;
 
+import lombok.extern.log4j.Log4j2;
+
+@Log4j2
 public class IOWorker implements AutoCloseable {
-	private static final Logger LOGGER = LogManager.getLogger();
 	private static final AtomicInteger ioWorkerCounter = new AtomicInteger(1);
 	private static final Executor executor = Executors.newCachedThreadPool((runnable) -> {
 		Thread thread = new Thread(runnable);
@@ -32,151 +31,123 @@ public class IOWorker implements AutoCloseable {
 		thread.setUncaughtExceptionHandler((thread1, throwable) -> {
 			if (throwable instanceof CompletionException)
 				throwable = throwable.getCause();
-			LOGGER.error(String.format("Caught exception in thread %s", thread1), throwable);
+			log.error(String.format("Caught exception in thread %s", thread1), throwable);
 		});
 		return thread;
 	});
-	private final AtomicBoolean b = new AtomicBoolean();
-	private final ThreadedMailbox c;
-	private final RegionFileCache d;
-	private final Map<ChunkCoords, CompletableNBTTag> e = Maps.newLinkedHashMap();
+	private final AtomicBoolean closed = new AtomicBoolean();
+	private final ThreadedMailbox mailbox;
+	private final RegionFileCache cache;
+	private final Map<ChunkCoords, CompletableJson> chunkData = Maps.newLinkedHashMap();
 
-	public IOWorker(File file, boolean flag, String s) {
-		this.d = new RegionFileCache(file, flag);
-		this.c = new ThreadedMailbox(executor, "IOWorker-" + s);
+	public IOWorker(File dir, boolean sync, String name) {
+		this.cache = new RegionFileCache(dir, sync);
+		this.mailbox = new ThreadedMailbox(executor, "IOWorker-" + name);
 	}
 
-	public CompletableFuture<?> write(ChunkCoords chunkcoordintpair, JsonObject nbttagcompound) {
-		return this.internalWrite4(() -> {
-			CompletableNBTTag ioworker_a = this.e.computeIfAbsent(chunkcoordintpair,
-					(chunkcoordintpair1) -> new CompletableNBTTag(nbttagcompound));
-
-			ioworker_a.json = nbttagcompound;
-			return Either.left(ioworker_a.completableFuture);
+	public CompletableFuture<?> write(ChunkCoords chunk, JsonObject json) {
+		return internal(() -> {
+			CompletableJson cJson = chunkData.computeIfAbsent(chunk, (chunk1) -> new CompletableJson(json));
+			cJson.json = json;
+			return Either.left(cJson.completableFuture);
 		}).thenCompose(Function.identity());
 	}
 
 	@Nullable
-	public JsonObject read(ChunkCoords chunkcoordintpair) throws IOException {
-		CompletableFuture<?> completablefuture = this.internalWrite4(() -> {
-			CompletableNBTTag ioworker_a = this.e.get(chunkcoordintpair);
-
-			if (ioworker_a != null) {
-				return Either.left(ioworker_a.json);
-			}
+	public JsonObject read(ChunkCoords chunk) throws IOException {
+		CompletableFuture<?> cFuture = internal(() -> {
+			CompletableJson cJson = chunkData.get(chunk);
+			if (cJson != null)
+				return Either.left(cJson.json);
 			try {
-				JsonObject nbttagcompound = this.d.read(chunkcoordintpair);
+				JsonObject json = cache.read(chunk);
 
-				return Either.left(nbttagcompound);
+				return Either.left(json);
 			} catch (Exception exception) {
-				IOWorker.LOGGER.warn("Failed to read chunk {}", chunkcoordintpair, exception);
+				IOWorker.log.warn("Failed to read chunk {}", chunk, exception);
 				return Either.right(exception);
 			}
 		});
-
-		try {
-			return (JsonObject) completablefuture.join();
-		} catch (CompletionException completionexception) {
-			if (completionexception.getCause() instanceof IOException) {
-				throw (IOException) completionexception.getCause();
-			}
-			throw completionexception;
-		}
+		return (JsonObject) join(cFuture);
 	}
 
-	public CompletableFuture<Void> syncChunks() {
-		CompletableFuture<Void> completablefuture = this.internalWrite4(() -> {
-			return Either.left(CompletableFuture.allOf(this.e.values().stream().map((ioworker_a) -> {
-				return ioworker_a.completableFuture;
-			}).toArray((i) -> {
-				return new CompletableFuture[i];
-			})));
+	public CompletableFuture<?> syncChunks() {
+		CompletableFuture<?> cFuture = internal(() -> {
+			return Either.left(CompletableFuture.allOf(chunkData.values().stream()
+					.map((cJson) -> cJson.completableFuture).toArray((i) -> new CompletableFuture[i])));
 		}).thenCompose(Function.identity());
 
-		return completablefuture.thenCompose((ovoid) -> {
-			return this.internalWrite4(() -> {
-				try {
-					this.d.a();
-					return Either.left(null);
-				} catch (Exception exception) {
-					IOWorker.LOGGER.warn("Failed to synchronized chunks", exception);
-					return Either.right(exception);
-				}
-			});
-		});
+		return cFuture.thenCompose((ovoid) -> internal(() -> {
+			try {
+				cache.close2();
+				return Either.left(null);
+			} catch (Exception exception) {
+				IOWorker.log.warn("Failed to synchronized chunks", exception);
+				return Either.right(exception);
+			}
+		}));
 	}
 
-	private <T> CompletableFuture<T> internalWrite4(Supplier<Either<T, Exception>> supplier) {
-		return this.c.c((mailbox) -> {
-			return new PrioRunnable(true, () -> {
-				if (!this.b.get()) {
-					mailbox.setMessage(supplier.get());
-				}
-
-				this.internalWrite3();
-			});
-		});
+	private <T> CompletableFuture<T> internal(Supplier<Either<T, Exception>> supplier) {
+		return mailbox.sendEither((mailbox) -> new PrioRunnable(true, () -> {
+			if (!closed.get())
+				mailbox.setMessage(supplier.get());
+			IOWorker.this.mailbox.setMessage(new PrioRunnable(false, this::internalWrite2));
+		}));
 	}
 
 	private void internalWrite2() {
-		Iterator<Entry<ChunkCoords, CompletableNBTTag>> iterator = this.e.entrySet().iterator();
+		Iterator<Entry<ChunkCoords, CompletableJson>> iterator = chunkData.entrySet().iterator();
 
 		if (iterator.hasNext()) {
-			Entry<ChunkCoords, CompletableNBTTag> entry = iterator.next();
+			Entry<ChunkCoords, CompletableJson> entry = iterator.next();
 
 			iterator.remove();
-			this.internalWrite1(entry.getKey(), entry.getValue());
-			this.internalWrite3();
+			internalWrite1(entry.getKey(), entry.getValue());
+			mailbox.setMessage(new PrioRunnable(false, this::internalWrite2));
 		}
 	}
 
-	private void internalWrite3() {
-		this.c.setMessage(new PrioRunnable(false, this::internalWrite2));
-	}
-
-	private void internalWrite1(ChunkCoords chunkcoordintpair, CompletableNBTTag ioworker_a) {
+	private void internalWrite1(ChunkCoords chunk, CompletableJson cJson) {
 		try {
-			this.d.write(chunkcoordintpair, ioworker_a.json);
-			ioworker_a.completableFuture.complete(null);
+			cache.write(chunk, cJson.json);
+			cJson.completableFuture.complete(null);
 		} catch (Exception exception) {
-			IOWorker.LOGGER.error("Failed to store chunk {}", chunkcoordintpair, exception);
-			ioworker_a.completableFuture.completeExceptionally(exception);
+			log.error("Failed to store chunk {}", chunk, exception);
+			cJson.completableFuture.completeExceptionally(exception);
 		}
 
 	}
 
 	public void close() throws IOException {
-		if (this.b.compareAndSet(false, true)) {
+		if (closed.compareAndSet(false, true)) {
 
-			CompletableFuture<?> completablefuture = this.c.b((mailbox) -> {
-				return new PrioRunnable(true, () -> {
-					mailbox.setMessage(Unit.INSTANCE);
-				});
-			});
-			try {
-				completablefuture.join();
-			} catch (CompletionException completionexception) {
-				if (completionexception.getCause() instanceof IOException) {
-					throw (IOException) completionexception.getCause();
-				}
+			join(mailbox.send((mailbox) -> new PrioRunnable(true, () -> mailbox.setMessage(Unit.INSTANCE))));
 
-				throw completionexception;
-			}
-
-			this.c.close();
-			this.e.forEach(this::internalWrite1);
-			this.e.clear();
+			mailbox.close();
+			chunkData.forEach(this::internalWrite1);
+			chunkData.clear();
 
 			try {
-				this.d.close();
+				cache.close();
 			} catch (Exception exception) {
-				IOWorker.LOGGER.error("Failed to close storage", exception);
+				IOWorker.log.error("Failed to close storage", exception);
 			}
 
 		}
 	}
 
-	static enum Unit {
+	private static <T> T join(CompletableFuture<T> c) throws IOException {
+		try {
+			return c.join();
+		} catch (CompletionException cex) {
+			if (cex.getCause() instanceof IOException)
+				throw (IOException) cex.getCause();
+			throw cex;
+		}
+	}
+
+	private static enum Unit {
 
 		INSTANCE;
 

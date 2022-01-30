@@ -8,7 +8,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-class CompletableNBTTag {
+class CompletableJson {
 	@NonNull JsonObject json;
 	final CompletableFuture<?> completableFuture = new CompletableFuture<>();
 }

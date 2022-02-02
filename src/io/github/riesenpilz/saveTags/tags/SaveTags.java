@@ -1,16 +1,15 @@
-package io.github.riesenpilz.saveTags;
+package io.github.riesenpilz.saveTags.tags;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
-import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -22,8 +21,9 @@ import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import io.github.riesenpilz.saveTags.ChunkCoords;
+import io.github.riesenpilz.saveTags.IOWorker;
+import io.github.riesenpilz.saveTags.json.JsonObjectWrapper;
 
 public class SaveTags extends JavaPlugin implements Listener {
 	public void onEnable() {
@@ -31,8 +31,17 @@ public class SaveTags extends JavaPlugin implements Listener {
 	}
 
 	public void onDisable() {
-		for (Entry<Chunk, JsonObject> entry : tags.entrySet())
-			getWorker(entry.getKey().getWorld()).write(new ChunkCoords(entry.getKey()), entry.getValue());
+		List<Chunk> chunks = new ArrayList<>(tags.keySet());
+		for (Entity entity : EntityTags.entityTags.keySet())
+			chunks.add(entity.getLocation().getChunk());
+
+		for (Chunk chunk : chunks) {
+			final IOWorker worker = getWorker(chunk.getWorld());
+			final JsonObjectWrapper tag = tags.get(chunk);
+			tag.add("EntityTags", EntityTags.save(chunk.getEntities()));
+			worker.write(new ChunkCoords(chunk), tag.jsonObject());
+		}
+
 		for (IOWorker worker : workers.values())
 			try {
 				worker.close();
@@ -42,12 +51,12 @@ public class SaveTags extends JavaPlugin implements Listener {
 	}
 
 	private static final Map<World, IOWorker> workers = new HashMap<>();
-	public static final Map<Chunk, JsonObject> tags = new HashMap<>();
-	public static final Map<Entity, JsonObject> entityTags = new HashMap<>();
+	public static final Map<Chunk, JsonObjectWrapper> tags = new HashMap<>();
 
 	@EventHandler
 	public void onWorldUnload(WorldUnloadEvent e) {
 		workers.remove(e.getWorld());
+		Bukkit.getScheduler().runTask(this, () -> checkForEntities());
 	}
 
 	@EventHandler
@@ -56,7 +65,10 @@ public class SaveTags extends JavaPlugin implements Listener {
 		final Chunk chunk = e.getChunk();
 		final IOWorker worker = getWorker(world);
 		try {
-			tags.put(chunk, worker.read(new ChunkCoords(chunk)));
+			final JsonObjectWrapper read = new JsonObjectWrapper(worker.read(new ChunkCoords(chunk)));
+			EntityTags.load(read.getJsonObject("EntityTags"));
+			read.remove("EntityTags");
+			tags.put(chunk, read);
 		} catch (IOException ex) {
 			ex.printStackTrace();
 		}
@@ -67,37 +79,25 @@ public class SaveTags extends JavaPlugin implements Listener {
 		final World world = e.getWorld();
 		final Chunk chunk = e.getChunk();
 		final IOWorker worker = getWorker(world);
-		final JsonObject tag = tags.get(chunk);
-		JsonArray entityTags = new JsonArray();
-		for (Entity entity : chunk.getEntities())
-			if (SaveTags.entityTags.containsKey(entity)) {
-				entityTags.add(SaveTags.entityTags.get(entity));
-				SaveTags.entityTags.remove(entity);
-			}
-		tag.add("EntityTags", entityTags);
-		worker.write(new ChunkCoords(chunk), tag);
+		final JsonObjectWrapper tag = tags.get(chunk);
+		tag.add("EntityTags", EntityTags.save(chunk.getEntities()));
+		worker.write(new ChunkCoords(chunk), tag.jsonObject());
+		tags.remove(chunk);
 	}
 
 	@EventHandler
 	public void onEntityDie(EntityDeathEvent e) {
-		entityTags.remove(e.getEntity());
+		EntityTags.get(e.getEntity()).setTags(null);
 	}
 
 	@EventHandler
 	public void onItemDespawn(ItemDespawnEvent e) {
-		entityTags.remove(e.getEntity());
+		EntityTags.get(e.getEntity()).setTags(null);
 	}
 
 	@EventHandler
 	public void onBlockBreak(BlockBreakEvent e) {
-		removeBlockTags(e.getBlock());
-	}
-
-	public static void removeBlockTags(Block block) {
-		final Location location = block.getLocation();
-		final JsonObject tag = getAllTags(block.getChunk());
-		final JsonObject blockTags = get(tag, "block tags");
-		blockTags.remove(location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ());
+		BlockTags.getTags(e.getBlock()).setTags(null);
 	}
 
 	public IOWorker getWorker(final World world) {
@@ -109,67 +109,16 @@ public class SaveTags extends JavaPlugin implements Listener {
 		return worker;
 	}
 
-	public static JsonObject getAllTags(Chunk chunk) {
-		tags.putIfAbsent(chunk, new JsonObject());
+	public static JsonObjectWrapper getAllTags(Chunk chunk) {
+		tags.putIfAbsent(chunk, new JsonObjectWrapper());
 		return tags.get(chunk);
 	}
 
-	public static JsonObject getBlockTags(Block block) {
-		final Location location = block.getLocation();
-		final JsonObject tag = getAllTags(block.getChunk());
-		final JsonObject blockTags = get(tag, "block tags");
-		return get(blockTags, location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ());
-	}
-
-	public static JsonObject getChunkTags(Chunk chunk) {
-		return get(getAllTags(chunk), "chunk tag");
-	}
-
-	public static void removeChunkTags(Chunk chunk) {
-		getAllTags(chunk).remove("chunk tag");
-	}
-
-	public void removeAllTags(Chunk chunk) {
-		tags.remove(chunk);
-	}
-
-	public static void removeEntityTags(Entity entity) {
-		entityTags.remove(entity);
-	}
-
-	private static JsonObject get(JsonObject json, String key) {
-		if (json.has(key) && json.get(key).isJsonObject())
-			return json.getAsJsonObject(key);
-		final JsonObject value = new JsonObject();
-		json.add(key, value);
-		return value;
-	}
-
-	public static void setBlockTags(Block block, JsonObject jsonObject) {
-		final JsonObject tag = getAllTags(block.getChunk());
-		final Location location = block.getLocation();
-		final JsonObject blockTags = get(tag, "block tags");
-		blockTags.add(location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ(), jsonObject);
-	}
-
-	public static void setChunkTags(Chunk chunk, JsonObject jsonObject) {
-		getAllTags(chunk).add("chunk tag", jsonObject);
-	}
-
-	public static void setEtityTags(Entity entity, JsonObject jsonObject) {
-		entityTags.put(entity, jsonObject);
-	}
-
-	public static JsonObject getEntityTags(Entity entity) {
-		entityTags.putIfAbsent(entity, new JsonObject());
-		return entityTags.get(entity);
-	}
-
 	public static void checkForEntities() {
-		Entity[] entities = (Entity[]) entityTags.keySet().toArray();
+		Entity[] entities = (Entity[]) EntityTags.entityTags.keySet().toArray();
 		for (Entity entity : entities)
 			if (!entity.isValid())
-				entityTags.remove(entity);
+				EntityTags.entityTags.remove(entity);
 	}
 //	public JsonObject getEntityTags(Chunk chunk) {
 //		JsonObject json = new JsonObject();

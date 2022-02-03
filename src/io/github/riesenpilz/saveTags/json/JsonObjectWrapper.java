@@ -19,9 +19,12 @@ public class JsonObjectWrapper {
 	public JsonObjectWrapper() {
 		jsonObject = new JsonObject();
 	}
-
-	public JsonObjectWrapper(JsonObject jsonObject) {
-		this.jsonObject = jsonObject;
+	public JsonObjectWrapper(@Nullable JsonObjectWrapper jsonObject) {
+		this.jsonObject = jsonObject == null ? new JsonObject() : jsonObject.jsonObject;
+	}
+	
+	public JsonObjectWrapper(@Nullable JsonObject jsonObject) {
+		this.jsonObject = jsonObject == null ? new JsonObject() : jsonObject;
 	}
 
 	public void add(String property, JsonElement value) {

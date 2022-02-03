@@ -5,26 +5,26 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 
-import javax.annotation.Nullable;
-
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import io.github.riesenpilz.saveTags.json.JsonObjectWrapper;
-import lombok.Data;
 import lombok.NonNull;
 
-@Data
-public class EntityTags implements Tagable {
+public class EntityTags extends JsonObjectWrapper {
 	public static final Map<Entity, JsonObjectWrapper> entityTags = new HashMap<>();
 	@NonNull
 	private final Entity entity;
+	private boolean exists;
 
 	private EntityTags(Entity entity) {
+		super(entityTags.get(entity));
 		this.entity = entity;
+		exists = entityTags.containsKey(entity);
 	}
 
 	private String getId() {
@@ -35,31 +35,13 @@ public class EntityTags implements Tagable {
 		return new EntityTags(entity);
 	}
 
-	@Override
-	public boolean hasTags() {
-		return entityTags.containsKey(entity);
-	}
-
-	@Override
-	public JsonObjectWrapper getTags() {
-		return entityTags.getOrDefault(entity, new JsonObjectWrapper());
-	}
-
-	@Override
-	public void setTags(@Nullable JsonObjectWrapper jsonObject) {
-		if (jsonObject == null)
-			entityTags.remove(entity);
-		else
-			entityTags.put(entity, jsonObject);
-	}
-
 	static JsonObjectWrapper save(Entity[] entities) {
 		JsonObjectWrapper jsonObject = new JsonObjectWrapper();
 		for (Entity entity : entities) {
 			EntityTags entityTags = of(entity);
 			if (entityTags.hasTags()) {
-				jsonObject.add(entityTags.getId(), entityTags.getTags());
-				entityTags.removeTags();
+				jsonObject.add(entityTags.getId(), entityTags);
+				entityTags.remove();
 			}
 		}
 		return jsonObject;
@@ -67,8 +49,8 @@ public class EntityTags implements Tagable {
 
 	static void load(JsonObjectWrapper jsonObject) {
 		for (Entry<String, JsonElement> entry : jsonObject.entrySet()) {
-			EntityTags entityTags = of(Bukkit.getEntity(UUID.fromString(entry.getKey())));
-			entityTags.setTags(new JsonObjectWrapper((JsonObject) entry.getValue()));
+			EntityTags.entityTags.put(Bukkit.getEntity(UUID.fromString(entry.getKey())),
+					new JsonObjectWrapper((JsonObject) entry.getValue()));
 		}
 	}
 
@@ -77,5 +59,71 @@ public class EntityTags implements Tagable {
 		for (Entity entity : entities)
 			if (!entity.isValid())
 				EntityTags.entityTags.remove(entity);
+	}
+
+	public boolean hasTags() {
+		return exists;
+	}
+
+	@Override
+	public void add(String property, boolean value) {
+		add();
+		super.add(property, value);
+	}
+
+	@Override
+	public void add(String property, char value) {
+		add();
+		super.add(property, value);
+	}
+
+	@Override
+	public void add(String property, String value) {
+		add();
+		super.add(property, value);
+	}
+
+	@Override
+	public void add(String property, Number value) {
+		add();
+		super.add(property, value);
+	}
+
+	@Override
+	public void add(String property, JsonElement value) {
+		add();
+		super.add(property, value);
+	}
+
+	@Override
+	public void add(String property, JsonObjectWrapper value) {
+		add();
+		super.add(property, value);
+	}
+
+	@Override
+	public JsonObjectWrapper getJsonObject(String memberName) {
+		add();
+		return super.getJsonObject(memberName);
+	}
+
+	@Override
+	public JsonArray getJsonArray(String memberName) {
+		add();
+		return super.getJsonArray(memberName);
+	}
+
+	private void add() {
+		if (exists)
+			return;
+		exists = true;
+		entityTags.put(entity, this);
+	}
+
+	public void remove() {
+		if (!exists)
+			return;
+		exists = false;
+		entityTags.remove(entity);
 	}
 }

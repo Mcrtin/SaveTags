@@ -87,17 +87,17 @@ public class SaveTags extends JavaPlugin implements Listener {
 
 	@EventHandler
 	public void onEntityDie(EntityDeathEvent e) {
-		EntityTags.of(e.getEntity()).removeTags();
+		EntityTags.of(e.getEntity()).remove();
 	}
 
 	@EventHandler
 	public void onItemDespawn(ItemDespawnEvent e) {
-		EntityTags.of(e.getEntity()).removeTags();
+		EntityTags.of(e.getEntity()).remove();
 	}
 
 	@EventHandler
 	public void onBlockBreak(BlockBreakEvent e) {
-		BlockTags.of(e.getBlock()).removeTags();
+		BlockTags.of(e.getBlock()).remove();
 	}
 
 	public IOWorker getWorker(final World world) {

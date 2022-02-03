@@ -18,27 +18,34 @@ import lombok.Data;
 import lombok.NonNull;
 
 @Data
-public class EntityTags {
+public class EntityTags implements Tagable {
 	public static final Map<Entity, JsonObject> entityTags = new HashMap<>();
 	@NonNull
 	private final Entity entity;
+
+	private EntityTags(Entity entity) {
+		this.entity = entity;
+	}
 
 	private String getId() {
 		return entity.getUniqueId().toString();
 	}
 
-	public static EntityTags get(Entity entity) {
+	public static EntityTags of(Entity entity) {
 		return new EntityTags(entity);
 	}
 
+	@Override
 	public boolean hasTags() {
 		return entityTags.containsKey(entity);
 	}
 
+	@Override
 	public JsonObjectWrapper getTags() {
 		return new JsonObjectWrapper(entityTags.getOrDefault(entity, new JsonObject()));
 	}
 
+	@Override
 	public void setTags(@Nullable JsonObject jsonObject) {
 		if (jsonObject == null)
 			entityTags.remove(entity);
@@ -49,7 +56,7 @@ public class EntityTags {
 	static JsonObjectWrapper save(Entity[] entities) {
 		JsonObjectWrapper jsonObject = new JsonObjectWrapper();
 		for (Entity entity : entities) {
-			EntityTags entityTags = get(entity);
+			EntityTags entityTags = of(entity);
 			if (entityTags.hasTags()) {
 				jsonObject.add(entityTags.getId(), entityTags.getTags());
 				entityTags.setTags(null);
@@ -60,8 +67,14 @@ public class EntityTags {
 
 	static void load(JsonObjectWrapper jsonObject) {
 		for (Entry<String, JsonElement> entry : jsonObject.entrySet()) {
-			EntityTags entityTags = get(Bukkit.getEntity(UUID.fromString(entry.getKey())));
+			EntityTags entityTags = of(Bukkit.getEntity(UUID.fromString(entry.getKey())));
 			entityTags.setTags((JsonObject) entry.getValue());
 		}
+	}
+	public static void checkEntities() {
+		Entity[] entities = (Entity[]) EntityTags.entityTags.keySet().toArray();
+		for (Entity entity : entities)
+			if (!entity.isValid())
+				EntityTags.entityTags.remove(entity);
 	}
 }

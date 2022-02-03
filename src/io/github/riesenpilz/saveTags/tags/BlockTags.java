@@ -12,11 +12,15 @@ import lombok.Data;
 import lombok.NonNull;
 
 @Data
-public class BlockTags {
+public class BlockTags implements Tagable {
 	@NonNull
 	private final Location location;
 
-	public static BlockTags getTags(Block block) {
+	private BlockTags(@NonNull Location location) {
+		this.location = location;
+	}
+
+	public static BlockTags of(@NonNull Block block) {
 		return new BlockTags(block.getLocation());
 	}
 
@@ -24,6 +28,7 @@ public class BlockTags {
 		return (location.getBlockX() % 16) + ":" + (location.getBlockY() % 16) + ":" + (location.getBlockZ() % 16);
 	}
 
+	@Override
 	public boolean hasTags() {
 		return getAllBlockTags().hasJsonObject(getId());
 	}
@@ -32,11 +37,14 @@ public class BlockTags {
 		return SaveTags.getAllTags(location.getChunk()).getJsonObjectOrDef("blockTags", new JsonObject());
 	}
 
+	@Override
 	public JsonObjectWrapper getTags() {
 		return getAllBlockTags().getJsonObjectOrDef(getId(), new JsonObject());
 	}
 
+	@Override
 	public void setTags(@Nullable JsonObject jsonObject) {
 		SaveTags.getAllTags(location.getChunk()).getJsonObject("blockTags").add(getId(), jsonObject);
 	}
+
 }

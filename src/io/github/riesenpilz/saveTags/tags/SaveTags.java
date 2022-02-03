@@ -56,7 +56,7 @@ public class SaveTags extends JavaPlugin implements Listener {
 	@EventHandler
 	public void onWorldUnload(WorldUnloadEvent e) {
 		workers.remove(e.getWorld());
-		Bukkit.getScheduler().runTask(this, () -> checkForEntities());
+		Bukkit.getScheduler().runTask(this, () -> EntityTags.checkEntities());
 	}
 
 	@EventHandler
@@ -87,17 +87,17 @@ public class SaveTags extends JavaPlugin implements Listener {
 
 	@EventHandler
 	public void onEntityDie(EntityDeathEvent e) {
-		EntityTags.get(e.getEntity()).setTags(null);
+		EntityTags.of(e.getEntity()).remove();
 	}
 
 	@EventHandler
 	public void onItemDespawn(ItemDespawnEvent e) {
-		EntityTags.get(e.getEntity()).setTags(null);
+		EntityTags.of(e.getEntity()).remove();
 	}
 
 	@EventHandler
 	public void onBlockBreak(BlockBreakEvent e) {
-		BlockTags.getTags(e.getBlock()).setTags(null);
+		BlockTags.of(e.getBlock()).remove();
 	}
 
 	public IOWorker getWorker(final World world) {
@@ -114,12 +114,6 @@ public class SaveTags extends JavaPlugin implements Listener {
 		return tags.get(chunk);
 	}
 
-	public static void checkForEntities() {
-		Entity[] entities = (Entity[]) EntityTags.entityTags.keySet().toArray();
-		for (Entity entity : entities)
-			if (!entity.isValid())
-				EntityTags.entityTags.remove(entity);
-	}
 //	public JsonObject getEntityTags(Chunk chunk) {
 //		JsonObject json = new JsonObject();
 //		for (Entity entity : chunk.getEntities()) {

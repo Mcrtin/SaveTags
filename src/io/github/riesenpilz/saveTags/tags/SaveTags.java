@@ -21,9 +21,9 @@ import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import io.github.riesenpilz.saveTags.ChunkCoords;
-import io.github.riesenpilz.saveTags.IOWorker;
 import io.github.riesenpilz.saveTags.json.JsonObjectWrapper;
+import io.github.riesenpilz.saveTags.storage.ChunkCoords;
+import io.github.riesenpilz.saveTags.storage.IOWorker;
 
 public class SaveTags extends JavaPlugin implements Listener {
 	public void onEnable() {

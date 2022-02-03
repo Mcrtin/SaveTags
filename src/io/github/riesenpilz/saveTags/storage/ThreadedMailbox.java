@@ -1,4 +1,4 @@
-package io.github.riesenpilz.saveTags;
+package io.github.riesenpilz.saveTags.storage;
 
 import java.util.Queue;
 import java.util.concurrent.Executor;

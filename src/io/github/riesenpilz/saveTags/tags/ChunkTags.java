@@ -34,7 +34,7 @@ public class ChunkTags implements Tagable {
 	}
 
 	@Override
-	public void setTags(@Nullable JsonObject jsonObject) {
+	public void setTags(@Nullable JsonObjectWrapper jsonObject) {
 		SaveTags.getAllTags(chunk).add("chunkTags", jsonObject);
 	}
 

@@ -19,7 +19,7 @@ import lombok.NonNull;
 
 @Data
 public class EntityTags implements Tagable {
-	public static final Map<Entity, JsonObject> entityTags = new HashMap<>();
+	public static final Map<Entity, JsonObjectWrapper> entityTags = new HashMap<>();
 	@NonNull
 	private final Entity entity;
 
@@ -42,11 +42,11 @@ public class EntityTags implements Tagable {
 
 	@Override
 	public JsonObjectWrapper getTags() {
-		return new JsonObjectWrapper(entityTags.getOrDefault(entity, new JsonObject()));
+		return entityTags.getOrDefault(entity, new JsonObjectWrapper());
 	}
 
 	@Override
-	public void setTags(@Nullable JsonObject jsonObject) {
+	public void setTags(@Nullable JsonObjectWrapper jsonObject) {
 		if (jsonObject == null)
 			entityTags.remove(entity);
 		else
@@ -59,7 +59,7 @@ public class EntityTags implements Tagable {
 			EntityTags entityTags = of(entity);
 			if (entityTags.hasTags()) {
 				jsonObject.add(entityTags.getId(), entityTags.getTags());
-				entityTags.setTags(null);
+				entityTags.removeTags();
 			}
 		}
 		return jsonObject;
@@ -68,9 +68,10 @@ public class EntityTags implements Tagable {
 	static void load(JsonObjectWrapper jsonObject) {
 		for (Entry<String, JsonElement> entry : jsonObject.entrySet()) {
 			EntityTags entityTags = of(Bukkit.getEntity(UUID.fromString(entry.getKey())));
-			entityTags.setTags((JsonObject) entry.getValue());
+			entityTags.setTags(new JsonObjectWrapper((JsonObject) entry.getValue()));
 		}
 	}
+
 	public static void checkEntities() {
 		Entity[] entities = (Entity[]) EntityTags.entityTags.keySet().toArray();
 		for (Entity entity : entities)

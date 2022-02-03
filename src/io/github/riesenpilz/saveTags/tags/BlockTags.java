@@ -43,7 +43,7 @@ public class BlockTags implements Tagable {
 	}
 
 	@Override
-	public void setTags(@Nullable JsonObject jsonObject) {
+	public void setTags(@Nullable JsonObjectWrapper jsonObject) {
 		SaveTags.getAllTags(location.getChunk()).getJsonObject("blockTags").add(getId(), jsonObject);
 	}
 

@@ -2,8 +2,6 @@ package io.github.riesenpilz.saveTags.tags;
 
 import javax.annotation.Nullable;
 
-import com.google.gson.JsonObject;
-
 import io.github.riesenpilz.saveTags.json.JsonObjectWrapper;
 
 public interface Tagable {
@@ -11,9 +9,9 @@ public interface Tagable {
 
 	public JsonObjectWrapper getTags();
 
-	public void setTags(@Nullable JsonObject jsonObject);
+	public void setTags(@Nullable JsonObjectWrapper jsonObject);
 
-	public default void remove() {
+	public default void removeTags() {
 		setTags(null);
 	}
 }

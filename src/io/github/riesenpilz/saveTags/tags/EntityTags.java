@@ -8,23 +8,20 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import io.github.riesenpilz.saveTags.json.JsonObjectWrapper;
 import lombok.NonNull;
 
-public class EntityTags extends JsonObjectWrapper {
+public class EntityTags extends Tag {
 	public static final Map<Entity, JsonObjectWrapper> entityTags = new HashMap<>();
 	@NonNull
 	private final Entity entity;
-	private boolean exists;
 
 	private EntityTags(Entity entity) {
-		super(entityTags.get(entity));
+		super(entityTags.get(entity), entityTags.containsKey(entity));
 		this.entity = entity;
-		exists = entityTags.containsKey(entity);
 	}
 
 	private String getId() {
@@ -61,69 +58,13 @@ public class EntityTags extends JsonObjectWrapper {
 				EntityTags.entityTags.remove(entity);
 	}
 
-	public boolean hasTags() {
-		return exists;
-	}
-
 	@Override
-	public void add(String property, boolean value) {
-		add();
-		super.add(property, value);
-	}
-
-	@Override
-	public void add(String property, char value) {
-		add();
-		super.add(property, value);
-	}
-
-	@Override
-	public void add(String property, String value) {
-		add();
-		super.add(property, value);
-	}
-
-	@Override
-	public void add(String property, Number value) {
-		add();
-		super.add(property, value);
-	}
-
-	@Override
-	public void add(String property, JsonElement value) {
-		add();
-		super.add(property, value);
-	}
-
-	@Override
-	public void add(String property, JsonObjectWrapper value) {
-		add();
-		super.add(property, value);
-	}
-
-	@Override
-	public JsonObjectWrapper getJsonObject(String memberName) {
-		add();
-		return super.getJsonObject(memberName);
-	}
-
-	@Override
-	public JsonArray getJsonArray(String memberName) {
-		add();
-		return super.getJsonArray(memberName);
-	}
-
-	private void add() {
-		if (exists)
-			return;
-		exists = true;
+	protected void addThis() {
 		entityTags.put(entity, this);
 	}
 
-	public void remove() {
-		if (!exists)
-			return;
-		exists = false;
+	@Override
+	protected void removeThis() {
 		entityTags.remove(entity);
 	}
 }

@@ -34,19 +34,19 @@ interface Mailbox<Msg> extends AutoCloseable {
 	}
 	
 	default <Source> CompletableFuture<Source> send(Function<? super Mailbox<Source>, ? extends Msg> function) {
-        CompletableFuture<Source> completablefuture = new CompletableFuture<Source>();
-        Msg msg = function.apply(Mailbox.constructMailbox("ask future procesor handle", completablefuture::complete));
+        CompletableFuture<Source> cf = new CompletableFuture<Source>();
+        Msg msg = function.apply(Mailbox.constructMailbox("ask future procesor handle", cf::complete));
         setMessage(msg);
-        return completablefuture;
+        return cf;
     }
 	default <Source> CompletableFuture<Source> sendEither(Function<? super Mailbox<Either<Source, Exception>>, ? extends Msg> function) {
-        CompletableFuture<Source> completablefuture = new CompletableFuture<Source>();
+        CompletableFuture<Source> cf = new CompletableFuture<Source>();
         Msg msg = function.apply(Mailbox.constructMailbox("ask future procesor handle", (either) -> {
-            either.ifLeft(completablefuture::complete);
-            either.ifRight(completablefuture::completeExceptionally);
+            either.ifLeft(cf::complete);
+            either.ifRight(cf::completeExceptionally);
         }));
         setMessage(msg);
-        return completablefuture;
+        return cf;
     }
 }
 

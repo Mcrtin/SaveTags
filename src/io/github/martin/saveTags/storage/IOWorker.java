@@ -7,10 +7,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -24,17 +21,6 @@ import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 public class IOWorker implements AutoCloseable {
-	private static final AtomicInteger ioWorkerCounter = new AtomicInteger(1);
-	private static final Executor executor = Executors.newCachedThreadPool((runnable) -> {
-		Thread thread = new Thread(runnable);
-		thread.setName("IO-Worker-" + ioWorkerCounter.getAndIncrement());
-		thread.setUncaughtExceptionHandler((thread1, throwable) -> {
-			if (throwable instanceof CompletionException)
-				throwable = throwable.getCause();
-			log.error(String.format("Caught exception in thread %s", thread1), throwable);
-		});
-		return thread;
-	});
 	private final AtomicBoolean closed = new AtomicBoolean();
 	private final ThreadedMailbox mailbox;
 	private final RegionFileCache cache;
@@ -42,12 +28,12 @@ public class IOWorker implements AutoCloseable {
 
 	public IOWorker(File dir, boolean sync, String name) {
 		this.cache = new RegionFileCache(dir, sync);
-		this.mailbox = new ThreadedMailbox(executor, "IOWorker-" + name);
+		this.mailbox = new ThreadedMailbox(name);
 	}
 
 	public CompletableFuture<?> write(ChunkCoords chunk, JsonObject json) {
 		return internal(() -> {
-			CompletableJson cJson = chunkData.computeIfAbsent(chunk, (chunk1) -> new CompletableJson(json));
+			CompletableJson cJson = chunkData.computeIfAbsent(chunk, unused -> new CompletableJson(json));
 			cJson.json = json;
 			return Either.left(cJson.completableFuture);
 		}).thenCompose(Function.identity());
@@ -77,7 +63,7 @@ public class IOWorker implements AutoCloseable {
 					.map((cJson) -> cJson.completableFuture).toArray((i) -> new CompletableFuture[i])));
 		}).thenCompose(Function.identity());
 
-		return cFuture.thenCompose((ovoid) -> internal(() -> {
+		return cFuture.thenCompose(unnused -> internal(() -> {
 			try {
 				cache.close2();
 				return Either.left(null);
@@ -89,7 +75,7 @@ public class IOWorker implements AutoCloseable {
 	}
 
 	private <T> CompletableFuture<T> internal(Supplier<Either<T, Exception>> supplier) {
-		return mailbox.sendEither((mailbox) -> new PrioRunnable(true, () -> {
+		return mailbox.sendEither(mailbox -> new PrioRunnable(true, () -> {
 			if (!closed.get())
 				mailbox.setMessage(supplier.get());
 			IOWorker.this.mailbox.setMessage(new PrioRunnable(false, this::internalWrite2));
@@ -122,7 +108,7 @@ public class IOWorker implements AutoCloseable {
 	public void close() throws IOException {
 		if (closed.compareAndSet(false, true)) {
 
-			join(mailbox.send((mailbox) -> new PrioRunnable(true, () -> mailbox.setMessage(Unit.INSTANCE))));
+			join(mailbox.send(mailbox -> new PrioRunnable(true, () -> mailbox.setMessage(Unit.INSTANCE))));
 
 			mailbox.close();
 			chunkData.forEach(this::internalWrite1);
@@ -130,8 +116,8 @@ public class IOWorker implements AutoCloseable {
 
 			try {
 				cache.close();
-			} catch (Exception exception) {
-				IOWorker.log.error("Failed to close storage", exception);
+			} catch (Exception ex) {
+				IOWorker.log.error("Failed to close storage", ex);
 			}
 
 		}
@@ -148,8 +134,6 @@ public class IOWorker implements AutoCloseable {
 	}
 
 	private static enum Unit {
-
-		INSTANCE;
-
+		INSTANCE
 	}
 }

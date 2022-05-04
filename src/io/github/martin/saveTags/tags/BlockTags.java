@@ -16,6 +16,15 @@ public class BlockTags extends Tag {
 		this.location = location;
 	}
 
+	public BlockTags(Block block, JsonObjectWrapper tags) {
+		super(tags, tags.size() != 0);
+		if (tags.size() == 0)
+			removeThis();
+		else
+			addThis();
+		this.location = block.getLocation();
+	}
+
 	public static BlockTags of(@NonNull Block block) {
 		return new BlockTags(block.getLocation());
 	}

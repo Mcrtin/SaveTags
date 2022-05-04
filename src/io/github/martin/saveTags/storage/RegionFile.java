@@ -13,7 +13,6 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -45,15 +44,14 @@ class RegionFile implements AutoCloseable {
 
 	RegionFile(File dir, String fileName, boolean sync) throws IOException {
 		this.dir = dir.toPath();
-		Path file = new File(dir, fileName).toPath();
-		Validate.isTrue(Files.isDirectory(this.dir, new LinkOption[0]),
-				"Expected directory, got " + this.dir.toAbsolutePath());
+		Validate.isTrue(Files.isDirectory(this.dir), "Expected directory, got " + this.dir.toAbsolutePath());
 
 		firstByteBuffAsInt4096Bytes.limit(1024);
 		byteBuff8192.position(4096);
 		secondByteBuffAsInt4096Bytes = byteBuff8192.asIntBuffer();
 		byteBuff8192.position(0);
 
+		Path file = new File(dir, fileName).toPath();
 		dataFile = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE,
 				sync ? StandardOpenOption.SYNC : StandardOpenOption.DSYNC);
 

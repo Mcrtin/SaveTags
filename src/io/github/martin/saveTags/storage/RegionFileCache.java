@@ -19,7 +19,7 @@ import lombok.NonNull;
 import lombok.Value;
 
 @Value
-public final class RegionFileCache implements AutoCloseable {
+public class RegionFileCache implements AutoCloseable {
 
 	private Long2ObjectLinkedOpenHashMap<RegionFile> cache = new Long2ObjectLinkedOpenHashMap<RegionFile>();
 	@NonNull

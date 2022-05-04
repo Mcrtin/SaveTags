@@ -1,4 +1,4 @@
-package io.github.riesenpilz.saveTags.tags;
+package io.github.martin.saveTags.tags;
 
 import org.bukkit.Chunk;
 

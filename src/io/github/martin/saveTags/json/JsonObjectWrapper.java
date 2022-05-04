@@ -1,4 +1,4 @@
-package io.github.riesenpilz.saveTags.json;
+package io.github.martin.saveTags.json;
 
 import java.util.Map.Entry;
 import java.util.Set;

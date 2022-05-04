@@ -1,4 +1,4 @@
-package io.github.riesenpilz.saveTags.storage;
+package io.github.martin.saveTags.storage;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;

@@ -1,9 +1,9 @@
-package io.github.riesenpilz.saveTags.tags;
+package io.github.martin.saveTags.tags;
 
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 
-import io.github.riesenpilz.saveTags.json.JsonObjectWrapper;
+import io.github.martin.saveTags.json.JsonObjectWrapper;
 import lombok.NonNull;
 
 public class BlockTags extends Tag {

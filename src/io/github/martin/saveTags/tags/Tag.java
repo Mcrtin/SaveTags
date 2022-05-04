@@ -1,9 +1,9 @@
-package io.github.riesenpilz.saveTags.tags;
+package io.github.martin.saveTags.tags;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 
-import io.github.riesenpilz.saveTags.json.JsonObjectWrapper;
+import io.github.martin.saveTags.json.JsonObjectWrapper;
 
 public abstract class Tag extends JsonObjectWrapper {
 	private boolean exists;

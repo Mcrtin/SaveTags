@@ -1,4 +1,4 @@
-package io.github.riesenpilz.saveTags.tags;
+package io.github.martin.saveTags.tags;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +11,7 @@ import org.bukkit.entity.Entity;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import io.github.riesenpilz.saveTags.json.JsonObjectWrapper;
+import io.github.martin.saveTags.json.JsonObjectWrapper;
 import lombok.NonNull;
 
 public class EntityTags extends Tag {

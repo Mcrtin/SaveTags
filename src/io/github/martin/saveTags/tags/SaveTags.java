@@ -1,4 +1,4 @@
-package io.github.riesenpilz.saveTags.tags;
+package io.github.martin.saveTags.tags;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,9 +26,9 @@ import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import io.github.riesenpilz.saveTags.json.JsonObjectWrapper;
-import io.github.riesenpilz.saveTags.storage.ChunkCoords;
-import io.github.riesenpilz.saveTags.storage.IOWorker;
+import io.github.martin.saveTags.json.JsonObjectWrapper;
+import io.github.martin.saveTags.storage.ChunkCoords;
+import io.github.martin.saveTags.storage.IOWorker;
 
 public class SaveTags extends JavaPlugin implements Listener {
 	public void onEnable() {

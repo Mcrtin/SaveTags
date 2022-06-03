@@ -49,9 +49,9 @@ public class IOWorker implements AutoCloseable {
 				JsonObject json = cache.read(chunk);
 
 				return Either.left(json);
-			} catch (Exception exception) {
-				IOWorker.log.warn("Failed to read chunk {}", chunk, exception);
-				return Either.right(exception);
+			} catch (Exception ex) {
+				IOWorker.log.warn("Failed to read chunk {}", chunk, ex);
+				return Either.right(ex);
 			}
 		});
 		return (JsonObject) join(cFuture);
@@ -60,7 +60,7 @@ public class IOWorker implements AutoCloseable {
 	public CompletableFuture<?> syncChunks() {
 		CompletableFuture<?> cFuture = internal(() -> {
 			return Either.left(CompletableFuture.allOf(chunkData.values().stream()
-					.map((cJson) -> cJson.completableFuture).toArray((i) -> new CompletableFuture[i])));
+					.map((cJson) -> cJson.completableFuture).toArray(CompletableFuture[]::new)));
 		}).thenCompose(Function.identity());
 
 		return cFuture.thenCompose(unnused -> internal(() -> {

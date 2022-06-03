@@ -1,5 +1,6 @@
 package io.github.martin.saveTags.tags;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -34,28 +35,22 @@ public class EntityTags extends Tag {
 
 	static JsonObjectWrapper save(Entity[] entities) {
 		JsonObjectWrapper jsonObject = new JsonObjectWrapper();
-		for (Entity entity : entities) {
-			EntityTags entityTags = of(entity);
-			if (entityTags.hasTags()) {
-				jsonObject.add(entityTags.getId(), entityTags);
-				entityTags.remove();
-			}
-		}
+		Arrays.stream(entities).map(EntityTags::of).filter(entityTags -> entityTags.hasTags()).forEach(entityTags -> {
+			jsonObject.add(entityTags.getId(), entityTags);
+			entityTags.remove();
+		});
 		return jsonObject;
 	}
 
 	static void load(JsonObjectWrapper jsonObject) {
-		for (Entry<String, JsonElement> entry : jsonObject.entrySet()) {
+		for (Entry<String, JsonElement> entry : jsonObject.entrySet())
 			EntityTags.entityTags.put(Bukkit.getEntity(UUID.fromString(entry.getKey())),
 					new JsonObjectWrapper((JsonObject) entry.getValue()));
-		}
 	}
 
 	public static void checkEntities() {
-		Entity[] entities = (Entity[]) EntityTags.entityTags.keySet().toArray();
-		for (Entity entity : entities)
-			if (!entity.isValid())
-				EntityTags.entityTags.remove(entity);
+		EntityTags.entityTags.keySet().stream().filter(entity -> !entity.isValid())
+				.forEach(entity -> EntityTags.entityTags.remove(entity));
 	}
 
 	@Override

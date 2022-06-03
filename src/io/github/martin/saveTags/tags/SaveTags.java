@@ -129,7 +129,7 @@ public class SaveTags extends JavaPlugin implements Listener {
 				break;
 			}
 		}
-		newLocations.forEach((block, tags) -> new BlockTags(block, tags));
+		newLocations.forEach(BlockTags::new);
 	}
 
 	@EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
@@ -150,7 +150,7 @@ public class SaveTags extends JavaPlugin implements Listener {
 				break;
 			}
 		}
-		newLocations.forEach((block, tags) -> new BlockTags(block, tags));
+		newLocations.forEach(BlockTags::new);
 	}
 
 	public IOWorker getWorker(final World world) {
